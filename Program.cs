@@ -7,8 +7,13 @@ DefaultTypeMap.MatchNamesWithUnderscores = true;
 
 var builder = WebApplication.CreateBuilder(args);
 
+//conexion a la base de datos Oracle
 builder.Services.AddScoped<OracleConnection>(_ => 
-    new OracleConnection(builder.Configuration.GetConnectionString("DefaultConnection")));
+    new OracleConnection(
+        builder.Configuration
+        .GetConnectionString("DefaultConnection")
+    )
+);
 
 // ✅ Agrega servicios para controladores
 builder.Services.AddScoped<ICustomerService, CustomerService>();
