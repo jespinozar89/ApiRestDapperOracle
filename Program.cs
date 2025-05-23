@@ -1,4 +1,9 @@
+using MyApiRestDapperOracle.Services.Implementations;
+using MyApiRestDapperOracle.Services.Interfaces;
 using Oracle.ManagedDataAccess.Client;
+using Dapper;
+
+DefaultTypeMap.MatchNamesWithUnderscores = true;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -6,6 +11,7 @@ builder.Services.AddScoped<OracleConnection>(_ =>
     new OracleConnection(builder.Configuration.GetConnectionString("DefaultConnection")));
 
 // ✅ Agrega servicios para controladores
+builder.Services.AddScoped<ICustomerService, CustomerService>();
 builder.Services.AddControllers();
 
 
@@ -24,5 +30,9 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+
+// Habilita el routing y los endpoints
+app.UseRouting();
+app.MapControllers();  // Mapea TODOS los controladores
 
 app.Run();
