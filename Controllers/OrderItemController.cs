@@ -8,13 +8,12 @@ namespace MyApiRestDapperOracle.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    public class OrderController : ControllerBase
+    public class OrderItemController : ControllerBase
     {
-        private readonly IOrderService _orderService;
-
-        public OrderController(IOrderService orderService)
+        private readonly IOrderItemService _orderItemService;
+        public OrderItemController(IOrderItemService orderItemService)
         {
-            _orderService = orderService;
+            _orderItemService = orderItemService;
         }
 
         [HttpGet]
@@ -22,8 +21,8 @@ namespace MyApiRestDapperOracle.Controllers
         {
             try
             {
-                var orders = await _orderService.GetAll();
-                return Ok(orders);
+                var orderItems = await _orderItemService.GetAll();
+                return Ok(orderItems);
             }
             catch (OracleException ex) when (ex.Number >= 20000 && ex.Number <= 20999)
             {
@@ -37,17 +36,17 @@ namespace MyApiRestDapperOracle.Controllers
             }
         }
 
-        [HttpGet("{id}")]
-        public async Task<IActionResult> GetById(int id)
+        [HttpGet("{orderId}/{lineItemId}")]
+        public async Task<IActionResult> GetById(int orderId, int lineItemId)
         {
             try
             {
-                var order = await _orderService.GetById(id);
-                if (order == null)
+                var orderItem = await _orderItemService.GetById(orderId, lineItemId);
+                if (orderItem == null)
                 {
-                    return NotFound($"Order with ID {id} not found.");
+                    return NotFound($"Order item with Order ID {orderId} and Line Item ID {lineItemId} not found.");
                 }
-                return Ok(order);
+                return Ok(orderItem);
             }
             catch (OracleException ex) when (ex.Number >= 20000 && ex.Number <= 20999)
             {
@@ -62,26 +61,27 @@ namespace MyApiRestDapperOracle.Controllers
         }
 
         [HttpPost]
-        public async Task<IActionResult> Add(OrderDTO order)
+        public async Task<IActionResult> Add([FromBody] OrderItemDTO orderItem)
         {
             try
             {
-                if (order == null)
+                if (orderItem == null)
                 {
-                    return BadRequest("Order cannot be null.");
+                    return BadRequest("Order item cannot be null.");
                 }
 
-                var newOrder = new Order
+                var newOrderItem = new OrderItem
                 {
-                    CustomerId = order.CustomerId,
-                    OrderTms = DateTime.Now,
-                    OrderStatus = order.OrderStatus,
-                    StoreId = 1
+                    OrderId = orderItem.OrderId,
+                    LineItemId = orderItem.LineItemId,
+                    ProductId = orderItem.ProductId,
+                    Quantity = orderItem.Quantity,
+                    UnitPrice = orderItem.UnitPrice,
+                    ShipmentId = 1
                 };
 
-                // Llama al servicio para agregar el pedido
-                newOrder.OrderId = await _orderService.Add(newOrder);
-                return CreatedAtAction(nameof(GetById), new { id = newOrder.OrderId }, newOrder);
+                await _orderItemService.Add(newOrderItem);
+                return CreatedAtAction(nameof(GetById), new { orderId = newOrderItem.OrderId, lineItemId = newOrderItem.LineItemId }, newOrderItem);
             }
             catch (OracleException ex) when (ex.Number >= 20000 && ex.Number <= 20999)
             {
@@ -95,34 +95,28 @@ namespace MyApiRestDapperOracle.Controllers
             }
         }
 
-        [HttpPut("{id}")]
-        public async Task<IActionResult> Update(int id, OrderDTO order)
+        [HttpPut]
+        public async Task<IActionResult> Update([FromBody] OrderItemDTO orderItem)
         {
             try
             {
-                if (order == null)
+                if (orderItem == null)
                 {
-                    return BadRequest("Order cannot be null.");
+                    return BadRequest("Order item cannot be null.");
                 }
 
-                if (id != order.OrderId)
+                var existingOrderItem = await _orderItemService.GetById(orderItem.OrderId, orderItem.LineItemId);
+                if (existingOrderItem == null)
                 {
-                    return BadRequest("Error Order ID mismatch. The ID in the URL must match the ID in the order object.");
+                    return NotFound($"Order item with Order ID {orderItem.OrderId} and Line Item ID {orderItem.LineItemId} not found.");
                 }
 
-                var existingOrder = await _orderService.GetById(id);
-                if (existingOrder == null)
-                {
-                    return NotFound($"Order with ID {id} not found.");
-                }
+                existingOrderItem.ProductId = orderItem.ProductId;
+                existingOrderItem.Quantity = orderItem.Quantity;
+                existingOrderItem.UnitPrice = orderItem.UnitPrice;
+                existingOrderItem.ShipmentId = 1;
 
-                existingOrder.OrderId = id; // Aseguramos que el ID del pedido sea el correcto
-                existingOrder.CustomerId = order.CustomerId;
-                existingOrder.OrderTms = DateTime.Now; // Actualizamos la fecha y hora del pedido
-                existingOrder.OrderStatus = order.OrderStatus;
-                existingOrder.StoreId = 1;
-
-                await _orderService.Update(existingOrder);
+                await _orderItemService.Update(existingOrderItem);
                 return NoContent();
             }
             catch (OracleException ex) when (ex.Number >= 20000 && ex.Number <= 20999)
@@ -136,19 +130,19 @@ namespace MyApiRestDapperOracle.Controllers
                 return StatusCode(500, "Internal server error: " + ex.Message);
             }
         }
-        
-        [HttpDelete("{id}")]
-        public async Task<IActionResult> Delete(int id)
+
+        [HttpDelete("{orderId}/{lineItemId}")]
+        public async Task<IActionResult> Delete(int orderId, int lineItemId)
         {
             try
             {
-                var existingOrder = await _orderService.GetById(id);
-                if (existingOrder == null)
+                var existingOrderItem = await _orderItemService.GetById(orderId, lineItemId);
+                if (existingOrderItem == null)
                 {
-                    return NotFound($"Order with ID {id} not found.");
+                    return NotFound($"Order item with Order ID {orderId} and Line Item ID {lineItemId} not found.");
                 }
 
-                await _orderService.Delete(id);
+                await _orderItemService.Delete(orderId, lineItemId);
                 return NoContent();
             }
             catch (OracleException ex) when (ex.Number >= 20000 && ex.Number <= 20999)
@@ -161,6 +155,6 @@ namespace MyApiRestDapperOracle.Controllers
                 // Log the exception (not implemented here)
                 return StatusCode(500, "Internal server error: " + ex.Message);
             }
-        }        
+        }
     }
 }
